@@ -5,6 +5,8 @@ vim.opt.mouse = "a"
 require("core.keymaps")
 require("core.options")
 
+vim.g.mapleader = " "
+vim.g.maplocalleader = " "
 -- Затем плагины
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then

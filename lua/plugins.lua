@@ -48,18 +48,18 @@ return {
 },
 
 {
-  "jiaoshijie/undotree",
-  dependencies = { "nvim-lua/plenary.nvim" },
-  ---@module 'undotree.collector'
-  ---@type UndoTreeCollector.Opts
-  opts = {
-    -- your options
+  "debugloop/telescope-undo.nvim",
+  dependencies = { "nvim-telescope/telescope.nvim" },
+  config = function()
+    require("telescope").load_extension("undo")
+  end,
+  keys = {
+    { "<leader>u", "<cmd>Telescope undo<CR>", desc = "Undo history" },
   },
-  keys = { -- load the plugin only when using it's keybinding:
-    { "<leader>u", "<cmd>lua require('undotree').toggle()<cr>" },
-  },
+  -- Принудительно загружаем при старте
+  event = "VeryLazy",
 },
-  {
+{
     "nvim-treesitter/nvim-treesitter",
     build = ":TSUpdate",
     config = function()
@@ -113,52 +113,82 @@ return {
     "neovim/nvim-lspconfig",
     config = function()
       local lspconfig = require("lspconfig")
-      lspconfig.clangd.setup({}) -- Настройка LSP сервера для C/C++
-    end,
+          local capabilities = require("cmp_nvim_lsp").default_capabilities() -- Добавьте эту строку
+    lspconfig.clangd.setup({
+  capabilities = capabilities,
+  cmd = {
+    "clangd",
+    "--background-index",
+    "--compile-commands-dir=build",
+    "--query-driver=/usr/bin/g++",
+    "--header-insertion=never",
+    "--all-scopes-completion",
+    "--completion-style=detailed",
+    "--extra-arg=-I/usr/include/x86_64-linux-gnu/qt5",
+    "--extra-arg=-I/usr/include/x86_64-linux-gnu/qt5/QtCore",
+    "--extra-arg=-I/usr/include/x86_64-linux-gnu/qt5/QtGui",
+    "--extra-arg=-I/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
+    "--extra-arg=-std=c++17",
+  },
+  filetypes = {"c", "cpp", "objc", "objcpp"},
+})
+end,
   },
 
-  -- *** Движок автодополнения ***
-  {
-    "hrsh7th/nvim-cmp",
-    dependencies = {
-      "hrsh7th/cmp-nvim-lsp", -- LSP как источник дополнений
-      "hrsh7th/cmp-buffer",   -- Дополнения из буфера
-      "hrsh7th/cmp-path",     -- Дополнения путей файлов
-      "L3MON4D3/LuaSnip",     -- Сниппеты
-          "saadparwaiz1/cmp_luasnip", -- Добавьте этот плагин
-    },
-    config = function()
-      local cmp = require("cmp")
-      cmp.setup({
-        snippet = {
-          expand = function(args)
-            require("luasnip").lsp_expand(args.body)
-          end,
-        },
-        mapping = cmp.mapping.preset.insert({
-                ["<Tab>"] = cmp.mapping(function(fallback)
+{
+  "hrsh7th/nvim-cmp",
+  dependencies = {
+    "hrsh7th/cmp-nvim-lsp",
+    "hrsh7th/cmp-buffer", 
+    "hrsh7th/cmp-path",
+    "L3MON4D3/LuaSnip",
+    "saadparwaiz1/cmp_luasnip",
+  },
+  config = function()
+    local cmp = require("cmp")
+    local luasnip = require("luasnip") -- Важно: объявить локально
+
+    cmp.setup({
+      snippet = {
+        expand = function(args)
+          luasnip.lsp_expand(args.body)
+        end,
+      },
+      mapping = cmp.mapping.preset.insert({
+        ["<Tab>"] = cmp.mapping(function(fallback)
           if cmp.visible() then
             cmp.select_next_item()
           elseif luasnip.expand_or_jumpable() then
             luasnip.expand_or_jump()
           else
+            fallback() -- Это позволит использовать Tab как обычный Tab
+          end
+        end, { "i", "s" }),
+
+        ["<S-Tab>"] = cmp.mapping(function(fallback)
+          if cmp.visible() then
+            cmp.select_prev_item()
+          elseif luasnip.jumpable(-1) then
+            luasnip.jump(-1)
+          else
             fallback()
           end
         end, { "i", "s" }),
-          ["<C-b>"] = cmp.mapping.scroll_docs(-4),
-          ["<C-f>"] = cmp.mapping.scroll_docs(4),
-          ["<C-Space>"] = cmp.mapping.complete(),
-          ["<C-e>"] = cmp.mapping.abort(),
-          ["<CR>"] = cmp.mapping.confirm({ select = true }),
-        }),
-        sources = cmp.config.sources({
-          { name = "nvim_lsp" }, -- Основной источник - LSP
-          { name = "luasnip" },  -- Сниппеты
-        }, {
-          { name = "buffer" },   -- Дополнения из текста в буфере
-          { name = "path" },     -- Дополнения путей файлов
-        })
+
+        ["<C-b>"] = cmp.mapping.scroll_docs(-4),
+        ["<C-f>"] = cmp.mapping.scroll_docs(4),
+        ["<C-Space>"] = cmp.mapping.complete(),
+        ["<C-e>"] = cmp.mapping.abort(),
+        ["<CR>"] = cmp.mapping.confirm({ select = true }),
+      }),
+      sources = cmp.config.sources({
+        { name = "nvim_lsp" },
+        { name = "luasnip" },
+      }, {
+        { name = "buffer" },
+        { name = "path" },
       })
-    end,
-  },
+    })
+  end,
+},
 }
